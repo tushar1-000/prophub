@@ -7,8 +7,6 @@ import cloudinary from "@/config/cloudinary";
 import { revalidatePath } from "next/cache";
 
 async function addProperty(formData) {
-  
-  
   await connectDB();
 
   const sessionUser = await getSessionUser();
@@ -76,9 +74,8 @@ async function addProperty(formData) {
   await newProperty.save();
 
   revalidatePath("/", "layout");
-  return { success: true, message: "Form submitted successfully!" };
   redirect(`/properties/${newProperty._id}`);
-  
+  return { success: true, message: "Form submitted successfully!" };
 }
 
 export default addProperty;
