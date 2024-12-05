@@ -17,7 +17,7 @@ async function deleteProperty(propertyId) {
 
   await connectDB();
 
-  const property = await Property.findById(propertyId);
+  const property = await Property.findById(propertyId).lean();
 
   if (!property) throw new Error("Property Not Found");
 
@@ -26,21 +26,35 @@ async function deleteProperty(propertyId) {
     throw new Error("Unauthorized");
   }
 
-  // extract public id's from image url in DB
-  const publicIds = property.images.map((imageUrl) => {
-    const parts = imageUrl.split("/");
-    return parts.at(-1).split(".").at(0);
-  });
+  // // extract public id's from image url in DB
+  // const publicIds = property.images.map((imageUrl) => {
+  //   const parts = imageUrl.split("/");
+  //   return parts.at(-1).split(".").at(0);
+  // });
 
-  // Delete images from Cloudinary
-  if (publicIds.length > 0) {
-    for (let publicId of publicIds) {
-      await cloudinary.uploader.destroy("prophub/" + publicId);
-    }
-  }
+  // // Delete images from Cloudinary
+  // if (publicIds.length > 0) {
+  //   for (let publicId of publicIds) {
+  //     await cloudinary.uploader.destroy("prophub/" + publicId);
+  //   }
+  // }
 
-  // Proceed with property deletion
-  await property.deleteOne();
+  // // Proceed with property deletion
+  // await property.deleteOne();
+
+  // Parallel processing of image deletion and property removal
+  await Promise.all([
+    // Batch delete Cloudinary images
+    cloudinary.api.delete_resources(
+      property.images.map((imageUrl) => {
+        const parts = imageUrl.split("/");
+        return "prophub/" + parts.at(-1).split(".").at(0);
+      }),
+      { type: "upload", resource_type: "image" }
+    ),
+    // Delete property from database
+    Property.findByIdAndDelete(propertyId),
+  ]);
 
   revalidatePath("/", "layout");
 }
